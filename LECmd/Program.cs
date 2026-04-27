@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.CommandLine;
 using System.CommandLine.Help;
-using System.CommandLine.NamingConventionBinder;
+using System.CommandLine.Invocation;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
@@ -14,7 +14,7 @@ using System.Security.Principal;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
-#if NET462
+#if !NET9_0_OR_GREATER
 using Alphaleonis.Win32.Filesystem;
 using Directory = Alphaleonis.Win32.Filesystem.Directory;
 using File = Alphaleonis.Win32.Filesystem.File;
@@ -50,7 +50,7 @@ internal class Program
 
     private static RootCommand _rootCommand;
 
-    private static readonly string Header = $"LECmd version {Assembly.GetExecutingAssembly().GetName().Version}" +
+    private static readonly string Header = $"LECmd version {Assembly.GetExecutingAssembly().GetName().Version.ToString(3)}" +
                                             "\r\n\r\nAuthor: Eric Zimmerman (saericzimmerman@gmail.com)" +
                                             "\r\nhttps://github.com/EricZimmerman/LECmd";
 
@@ -110,95 +110,158 @@ internal class Program
         ExceptionlessClient.Default.Startup("FNWfyFuaUAPnVfofTZAhZOgeDG5lv7AnjYKNtsEJ");
 
         LoadMacs();
+        
+            var fOpt = new Option<string>("-f")
+            {
+                Description = "File to recursively process. Either this or -d is required"
+            };
+
+            var dOpt = new Option<string>("-d")
+            {
+                Description = "Directory to recursively process. Either this or -f is required"
+            };
+            
+            var rOpt = new Option<bool>("-r")
+            {
+                Description =
+                    "Only process lnk files pointing to removable drives",
+                DefaultValueFactory = _ => false
+            };
+
+            var allOpt = new Option<bool>("--all")
+            {
+                Description =
+                    "Process all files in directory vs. only files matching *.automaticDestinations-ms or *.customDestinations-ms",
+                DefaultValueFactory = _ => false
+            };
+
+            var csvOpt = new Option<string>(
+                "--csv")
+            {
+                Description =
+                    "Directory to save CSV formatted results to. Be sure to include the full path in double quotes"
+            };
+
+            var csvfOpt = new Option<string>(
+                "--csvf")
+            {
+                Description = "File name to save CSV formatted results to. When present, overrides default name"
+            };
+            var jsonOpt = new Option<string>(
+                "--json")
+            {
+                Description =
+                    "Directory to save JSON formatted results to. Be sure to include the full path in double quotes. Use --pretty for a more human readable layout"
+            };
+            
+            var xmlOpt = new Option<string>(
+                "--xml")
+            {
+                Description =
+                    "Directory to save XML formatted results to. Be sure to include the full path in double quotes"
+            };
+
+       
+
+            var htmlOpt = new Option<string>(
+                "--html")
+            {
+                Description =
+                    "Directory to save xhtml formatted results to. Be sure to include the full path in double quotes"
+            };
+
+            var prettyOpt = new Option<bool>("--pretty")
+            {
+                Description = "When exporting to json, use a more human readable layout",
+                DefaultValueFactory = _ => false
+            };
+
+            var qOpt = new Option<bool>("-q")
+            {
+                Description =
+                    "Do not dump full details about each file processed. Speeds up processing when using --json or --csv",
+                DefaultValueFactory = _ => false
+            };
+            
+            var nidOpt = new Option<bool>("--nid")
+            {
+                Description =
+                    "Suppress Target ID list details from being displayed",
+                DefaultValueFactory = _ => false
+            };
+            
+            var nebOpt = new Option<bool>("--neb")
+            {
+                Description =
+                    "Suppress Extra blocks information from being displayed",
+                DefaultValueFactory = _ => false
+            };
+        
+
+            var dtOpt = new Option<string>(
+                "--dt")
+            {
+                Description =
+                    "The custom date/time format to use when displaying time stamps. See https://goo.gl/CNVq0k for options. Default is: yyyy-MM-dd HH:mm:ss",
+                DefaultValueFactory = _ => "yyyy-MM-dd HH:mm:ss"
+            };
+
+            var mpOpt = new Option<bool>("--mp")
+            {
+                Description = "When true, display higher precision for timestamps",
+                DefaultValueFactory = _ => false
+            };
+
+            var withDirOpt = new Option<bool>("--withDir")
+            {
+                Description = "When true, show contents of Directory not accounted for in DestList entries",
+                DefaultValueFactory = _ => false
+            };
+
+            var cpOpt = new Option<int>("--cp")
+            {
+                Description = "Code page to parse strings",
+                DefaultValueFactory = _ => 1252
+            };
+
+            var debugOpt = new Option<bool>("--debug")
+            {
+                Description = "Show debug information during processing",
+                DefaultValueFactory = _ => false
+            };
+            var traceOpt = new Option<bool>("--trace")
+            {
+                Description = "Show trace information during processing",
+                DefaultValueFactory = _ => false
+            };
 
         _rootCommand = new RootCommand
         {
-            new Option<string>(
-                "-f",
-                description: "File to process. Either this or -d is required"),
-            new Option<string>(
-                "-d",
-                description: "Directory to recursively process. Either this or -f is required"),
-            new Option<bool>(
-                "-r",
-                getDefaultValue: () => false,
-                "Only process lnk files pointing to removable drives"),
-
-            new Option<bool>(
-                "-q",
-                getDefaultValue: () => false,
-                "Only show the filename being processed vs all output. Useful to speed up exporting to json and/or csv"),
-
-            new Option<bool>(
-                "--all",
-                getDefaultValue: () => false,
-                "Process all files in directory vs. only files matching *.lnk"),
-
-            new Option<string>(
-                "--csv",
-                "Directory to save CSV formatted results to. Be sure to include the full path in double quotes"),
-
-            new Option<string>(
-                "--csvf",
-                "File name to save CSV formatted results to. When present, overrides default name\r\n"),
-
-            new Option<string>(
-                "--xml",
-                "Directory to save XML formatted results to. Be sure to include the full path in double quotes"),
-
-            new Option<string>(
-                "--html",
-                "Directory to save xhtml formatted results to. Be sure to include the full path in double quotes"),
-
-            new Option<string>(
-                "--json",
-                "Directory to save json representation to. Use --pretty for a more human readable layout"),
-
-            new Option<bool>(
-                "--pretty",
-                getDefaultValue: () => false,
-                "When exporting to json, use a more human readable layout"),
-
-            new Option<bool>(
-                "--nid",
-                getDefaultValue: () => false,
-                "Suppress Target ID list details from being displayed"),
-
-            new Option<bool>(
-                "--neb",
-                getDefaultValue: () => false,
-                "Suppress Extra blocks information from being displayed"),
-
-            new Option<string>(
-                "--dt",
-                getDefaultValue: () => "yyyy-MM-dd HH:mm:ss",
-                "The custom date/time format to use when displaying time stamps. See https://goo.gl/CNVq0k for options"),
-
-            new Option<bool>(
-                "--mp",
-                getDefaultValue: () => false,
-                "Display higher precision for time stamps"),
-
-            new Option<bool>(
-                "--debug",
-                () => false,
-                "Show debug information during processing"),
-
-            new Option<bool>(
-                "--trace",
-                () => false,
-                "Show trace information during processing"),
-            new Option<int>(
-                "--cp",
-                () => 1252,
-                "Code page to parse strings")
+            fOpt,
+            dOpt,
+            allOpt,
+            csvOpt,
+            csvfOpt,
+            jsonOpt,
+            htmlOpt,
+            prettyOpt,
+            qOpt,
+            dtOpt,
+            mpOpt,
+            withDirOpt,
+            cpOpt,
+            debugOpt,
+            traceOpt
         };
 
         _rootCommand.Description = Header + "\r\n\r\n" + Footer;
 
-        _rootCommand.Handler = CommandHandler.Create(DoWork);
+        _rootCommand.SetAction(result => DoWork(result.GetValue(fOpt), result.GetValue(dOpt), result.GetValue(rOpt),
+            result.GetValue(qOpt), result.GetValue(allOpt), result.GetValue(csvOpt), result.GetValue(csvfOpt),
+            result.GetValue(xmlOpt),result.GetValue(htmlOpt),result.GetValue(jsonOpt),result.GetValue(prettyOpt),result.GetValue(nidOpt),result.GetValue(nebOpt),result.GetValue(dtOpt),result.GetValue(mpOpt),result.GetValue(debugOpt),result.GetValue(traceOpt),result.GetValue(cpOpt)));
 
-        await _rootCommand.InvokeAsync(args);
+
+        var foo = _rootCommand.Parse(args).InvokeAsync();
 
         Log.CloseAndFlush();
     }
@@ -271,25 +334,18 @@ internal class Program
 
         if (f.IsNullOrEmpty() && d.IsNullOrEmpty())
         {
-            var helpBld = new HelpBuilder(LocalizationResources.Instance, Console.WindowWidth);
+            var aaa = new CustomHelpAction(new HelpAction());
+            aaa.Invoke(_rootCommand.Parse("Either -f or -d is required. Exiting"));
 
-            var hc = new HelpContext(helpBld, _rootCommand, Console.Out);
-
-            helpBld.Write(hc);
-
-            Log.Warning("Either -f or -d is required. Exiting");
             Console.WriteLine();
             return;
         }
 
         if (f.IsNullOrEmpty() == false && !File.Exists(f))
         {
-            var helpBld = new HelpBuilder(LocalizationResources.Instance, Console.WindowWidth);
-            var hc = new HelpContext(helpBld, _rootCommand, Console.Out);
+            var aaa = new CustomHelpAction(new HelpAction());
+            aaa.Invoke(_rootCommand.Parse($"File {f} not found. Exiting"));
 
-            helpBld.Write(hc);
-
-            Log.Warning("File {F} not found. Exiting",f);
             Console.WriteLine();
             return;
         }
@@ -297,12 +353,9 @@ internal class Program
         if (d.IsNullOrEmpty() == false &&
             !Directory.Exists(d))
         {
-            var helpBld = new HelpBuilder(LocalizationResources.Instance, Console.WindowWidth);
-            var hc = new HelpContext(helpBld, _rootCommand, Console.Out);
-
-            helpBld.Write(hc);
-
-            Log.Warning("Directory {D} not found. Exiting",d);
+            var aaa = new CustomHelpAction(new HelpAction());
+            aaa.Invoke(_rootCommand.Parse($"Directory {d} not found. Exiting"));
+        
             Console.WriteLine();
             return;
         }
@@ -372,7 +425,7 @@ internal class Program
 
                 IEnumerable<string> files2;
 
-#if NET6_0 || NET9_0
+#if NET9_0_OR_GREATER
                         var enumerationOptions = new EnumerationOptions
                         {
                             IgnoreInaccessible = true,
@@ -384,7 +437,7 @@ internal class Program
                        files2 =
                             Directory.EnumerateFileSystemEntries(d, mask,enumerationOptions);
 
-#elif NET462
+#else 
 // Legacy implementation for previous frameworks
 
                         var directoryEnumerationFilters = new DirectoryEnumerationFilters();
@@ -1609,6 +1662,24 @@ internal class Program
         return null;
     }
 
+    private class CustomHelpAction : SynchronousCommandLineAction
+    {
+        private readonly HelpAction _defaultHelp;
+
+        public CustomHelpAction(HelpAction action)
+        {
+            _defaultHelp = action;
+        }
+
+        public override int Invoke(ParseResult parseResult)
+        {
+            var result = _defaultHelp.Invoke(parseResult);
+
+            Log.Warning("{Msg}", string.Join(" ",parseResult.Tokens));
+
+            return result;
+        }
+    }
 
     private static string GetVendorFromMac(string macAddress)
     {
