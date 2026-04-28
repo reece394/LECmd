@@ -113,7 +113,7 @@ internal class Program
         
             var fOpt = new Option<string>("-f")
             {
-                Description = "File to recursively process. Either this or -d is required"
+                Description = "File to process. Either this or -d is required"
             };
 
             var dOpt = new Option<string>("-d")
@@ -131,7 +131,7 @@ internal class Program
             var allOpt = new Option<bool>("--all")
             {
                 Description =
-                    "Process all files in directory vs. only files matching *.automaticDestinations-ms or *.customDestinations-ms",
+                    "Process all files in directory vs. only files matching *.lnk",
                 DefaultValueFactory = _ => false
             };
 
@@ -202,19 +202,13 @@ internal class Program
                 "--dt")
             {
                 Description =
-                    "The custom date/time format to use when displaying time stamps. See https://goo.gl/CNVq0k for options. Default is: yyyy-MM-dd HH:mm:ss",
+                    "The custom date/time format to use when displaying time stamps. See https://goo.gl/CNVq0k for options",
                 DefaultValueFactory = _ => "yyyy-MM-dd HH:mm:ss"
             };
 
             var mpOpt = new Option<bool>("--mp")
             {
                 Description = "When true, display higher precision for timestamps",
-                DefaultValueFactory = _ => false
-            };
-
-            var withDirOpt = new Option<bool>("--withDir")
-            {
-                Description = "When true, show contents of Directory not accounted for in DestList entries",
                 DefaultValueFactory = _ => false
             };
 
@@ -248,7 +242,6 @@ internal class Program
             qOpt,
             dtOpt,
             mpOpt,
-            withDirOpt,
             cpOpt,
             debugOpt,
             traceOpt
